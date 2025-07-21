@@ -1,9 +1,9 @@
 # Imports
 import sys
-from locale import windows_locale
-from wsgiref.util import application_uri
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QImage, QPixmap
+
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -13,6 +13,8 @@ from PySide6.QtWidgets import (
     QPushButton,
     QLabel
 )
+
+from pipeline import initailize_pipeline
 
 # Create a simple window with a title and a basic layout
 class MainWindow(QMainWindow):
@@ -41,9 +43,31 @@ class MainWindow(QMainWindow):
         self.image_label.setAlignment(Qt.AlignCenter)
         self.layout.addWidget(self.image_label)
 
+        # Initialize stable diffusion pipeline
+        self.pipe = initailize_pipeline()
+        if self.pipe is None:
+            self.image_label.setText("Failed to load model. Check token and dependencies.")
+
     def generate_art(self):
         """Placeholder function for generating art."""
-        self.image_label.setText("Button clicked! Art generation will go here.")
+        prompt = self.prompt_input.text()
+        if not prompt or not self.pipe:
+            self.image_label.setText("Please enter a prompt and ensure model is loaded.")
+            return
+
+        try:
+            print(f"Generating art with prompt: {prompt}")
+            # Generate image with Stable Diffusion
+            image = self.pipe(prompt, num_inference_steps=20).images[0]
+
+            # Convert directly to QImage without temporary file
+            data = image.convert("RGB").tobytes()
+            qimage = QImage(data, image.width, image.height, QImage.Format_RGB888)
+            pixmap = QPixmap.fromImage(qimage)
+            self.image_label.setPixmap(pixmap.scaled(512, 512, Qt.KeepAspectRatio))
+
+        except Exception as e:
+            self.image_label.setText(f"Error generating art: {str(e)}")
 
 
 if __name__ == "__main__":
